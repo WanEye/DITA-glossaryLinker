@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN"
+"concept.dtd">
+<concept id="Chapter1">
+  <title>Chapter 1</title>
+
+  <conbody>
+    <p><ph id="HCL">Hydrochloric acid</ph>
+      <term conref="../glossary/glossary.dita#id_usg_xcm_qdb/HCl"/> is a strong acid.</p>
+
+    <p>See <xref href="../figures/figures.dita#figures/fig1">figure 1</xref>.</p>
+
+    <p/>
+
+    <p><ph id="HAc">Acetic acid</ph>
+      <term conref="../glossary/glossary.dita#ddl/HAc"/> is a weak acid.</p>
+
+    <p>See <xref href="../figures/figures.dita#figures/fig2">figure 2</xref>.</p>
+  </conbody>
+</concept>

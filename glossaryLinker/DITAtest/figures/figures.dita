@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN"
+"concept.dtd">
+<concept id="figures">
+  <title>figures</title>
+
+  <conbody>
+    <fig id="fig1">
+      <title><ph conref="../concepts/chapter1.dita#Chapter1/HCL"/></title>
+      <image scalefit="yes" href="fig1.jpeg"/>
+    </fig>
+    <p><xref href="../concepts/chapter1.dita#Chapter1">
+      <ph id="back2chap">Back to chapter</ph>
+    </xref></p>
+
+    <fig id="fig2">
+      <title><ph conref="../concepts/chapter1.dita#Chapter1/HAc"/></title><image scalefit="yes" href="fig2.png"/></fig>
+
+    <p><xref href="../concepts/chapter1.dita#Chapter1"><ph conref="#figures/back2chap"/></xref></p>
+  </conbody>
+</concept>
