@@ -1,13 +1,23 @@
+import errno
 import os
-import sys
 import re
-from shutil import copyfile
+import shutil
+import sys
+import time
+
 
 g_log = "Routines "
-g_IDglossentries=[]
-g_DITAcontent  = ""
+g_IDglossentries = []
+g_DITAcontent = ""
 g_DITAlist = []
 g_all_glossgroup = []
+
+# globals
+# g_all_glossgroup    list of glossary files
+# g_allowedTags       list of tags where you can put <xref>
+# g_DITAlist          list of DITA files
+# g_DITAcontent       String that contains the entire DITA file content
+# g_IDglossentries    list of glossentry, glossterm with ID
 
 
 def R99writeLog(content):
@@ -41,8 +51,7 @@ def R10AgetDITAfiles():
     global g_DITAlist
     global g_resultContent
     
-    
-    g_current_Dir=os.getcwd()
+    g_current_Dir = os.getcwd()
     print "directory in process: " + g_current_Dir
     
     for dirpath, dirnames, filenames in os.walk(g_current_Dir):
@@ -53,45 +62,41 @@ def R10AgetDITAfiles():
     return
 
 
+def copy(src, dest):
+    try:
+        shutil.copytree(src, dest)
+    except OSError as e:
+        # If the source is not a folder
+        if e.errno == errno.ENOTDIR:
+            shutil.copy(src, dest)
+        else:
+            print(src + ' Folder not copied. Error: %s' % e)
+            
+    return
+            
+
 def R10BbackupDITAfiles():
     routine = 'R10B '
     R99writeLog(routine)
     #
-    """
-    Make a backup of all .dita files because the program changes the files.
-    """
-
+    # Make a backup of all .dita files because the program changes the files.
     #
     backup_Dir = g_current_Dir + '/DITAbackup/'
     
     if os.path.exists(backup_Dir):
-        print """
-        Tags <indexterm> already present.
+        errorR10 = """
+        Glossary links already present.
         User actions:
-        Verify DITA code for tags <indexterm>
-        If you want to generate <indexterm> tags, delete " + backup_Dir 
-        Run this program again
-        """
-        sys.exit()
-    else:    
-        try:
-            os.makedirs(backup_Dir)
-        except IOError:
-            print ("ERROR: Cannot make directory " + routine + g_current_Dir + backup_Dir)
-            sys.exit()
+        Verify DITA code for glossary links
+        If you want to generate links to glossary terms again, delete """
+        print errorR10
+        print "        " + backup_Dir 
+        print "        Then, run this program again."
         
-    for dirpath, dirnames, filenames in os.walk(g_current_Dir):
-        for filename in [f for f in filenames if f.endswith(".dita")]:
-            DITAfile = os.path.join(g_current_Dir, dirpath, filename)
-            backup_File = backup_Dir + filename
-            if not os.path.isfile(backup_File):
-                try:
-                    copyfile(DITAfile, backup_File)
-                except IOError:
-                    ioError(routine, backup_File)
-                    print("ERROR: Cannot copy " + routine + backup_File)
-                    sys.exit()
-                    
+        sys.exit()
+    
+    copy(g_current_Dir, backup_Dir)
+                  
     return
 
 
@@ -99,8 +104,8 @@ def R10CgetGlossaryFiles():
     routine = 'R10C '
     R99writeLog(routine)
     #
-    
     global g_all_glossgroup
+    g_all_glossgroup = []
     
     headerString = "<!DOCTYPE glossgroup" 
     
@@ -110,32 +115,51 @@ def R10CgetGlossaryFiles():
             filecontent = GLOSSFILE.read()
         except IOError:
             ioError(routine, Glossfile)
-            
+        # test if DITA file is a glossary file    
         if headerString in filecontent:
             g_all_glossgroup.append(Glossfile)
-            
+           
+    return
+
+
+def R10EgetAllowedTags():
+    routine = "R10 "
+    R99writeLog(routine)
+    #
+    global g_allowedTags
+    g_allowedTags = []
+    TAGS = open("containedBy.txt", "r")
+    g_allowedTags = TAGS.readlines()
+    
+    # remove newline from tags
+    for index in range(len(g_allowedTags)):
+        g_allowedTags[index] = g_allowedTags[index].rstrip('\n')
+      
     return
 
 
 def R10InitPrg():
     routine = 'R10 '
-    R99writeLog(routine)
+    localtime = time.asctime(time.localtime(time.time()))
+    R99writeLog(routine + ": " + localtime)
     #
     R10AgetDITAfiles()
     R10BbackupDITAfiles()
     R10CgetGlossaryFiles()
+    R10EgetAllowedTags()
     
     return
 
 
 def R19FinPrg():
     routine = 'R19 '
-    R99writeLog(routine)
+    localtime = time.asctime(time.localtime(time.time()))
+    R99writeLog(routine + ": " + localtime)
     #
     LOG = open("log.log", "w")
     LOG.write(g_log)
     LOG.close()
-    #
+    
     print "The End"
     
     return
@@ -156,24 +180,15 @@ def R20InitDITA(DITAfile):
     if '<glossgroup id' in DITAcontent:
         g_DITAcontent = ''
     else:
-        g_DITAcontent = DITAcontent    
+        g_DITAcontent = DITAcontent
+        # remove all new lines
+        # to format and indent again, use Oxygen Tools > Format and Indent files ... 
+        g_DITAcontent = g_DITAcontent.replace('\n', " ")
+        # replace multi spaces with single spaces
+        while ("  " in g_DITAcontent):
+            g_DITAcontent = g_DITAcontent.replace("  ", " ")   
     
     DITA.close()
-    
-    return
-
-
-def R29FinDITA(DITAfile, g_DITAcontent):
-    routine = 'R29 '
-    R99writeLog(routine)
-    #
-    try:
-        DITA = open(DITAfile, "w" )
-    except IOError:    
-        ioError(routine, DITAfile)
-        
-    DITA.write(g_DITAcontent)
-    DITA.close() 
     
     return
 
@@ -182,6 +197,8 @@ def R30Init_glossgroup(DITAfile, glossFile):
     routine = 'R30 '
     R99writeLog(routine)
     #
+    # determine relative path DITA file and glossary file
+    # fill list with glossentry and glossterm
     global g_IDglossentries
     try:
         GLOSS = open(glossFile)
@@ -190,12 +207,11 @@ def R30Init_glossgroup(DITAfile, glossFile):
      
     text = GLOSS.read()
     relativePath = R30ArelPath(glossFile, DITAfile)
-    print "Glossary: " + glossFile
-    # print text
+
     regex = r"""
     <glossentry\s*id=\"(\w*)\">.*?<glossterm>(.*?)<\/glossterm>
     """
-    g_IDglossentries = re.findall(regex, text, re.M|re.S|re.X)
+    g_IDglossentries = re.findall(regex, text, re.M | re.S | re.X)
             
     return relativePath, g_IDglossentries
 
@@ -219,97 +235,88 @@ def R39Fin_glossgroup():
     return
 
 
-def R40AcheckTerm(string, term):
-    routine = 'R40A '
-    R99writeLog(routine)
-    #
-    # Put all content in a single line
-    # Then, count the substring occurrences in both single-line and multi-line string
-    OneLineStr = string.replace("\n", "")
-    nLC1 = OneLineStr.count(term)
-    nUC1 = OneLineStr.count(term.capitalize())
-
-    nLC = string.count(term)
-    nUC = string.count(term.capitalize())
-    
-    occur  = nLC  + nUC                     
-    occur1 = nLC1 + nUC1
-    
-    difference = occur1 - occur
-
-    return difference
-
-
-def R40Proc_glossdef(g_DITAcontent, DITAfile ):
+def R40Proc_glossdef(DITAfile, tag, glossentry):
     routine = 'R40 '
     R99writeLog(routine)
     #
-    glossentryID=""
-    xrefStr   = " "
-    xrefStrUC = " "
+    # glossentry is a tuple 
+    # glossentry[1] contains the glossary term
+    #
+    global g_DITAcontent
+    #
     strPre = '<xref href="'
     strSuf = '</xref>'
     
-    for index in range(len(g_IDglossentries)):
-        # In the glossary, the term can be all lower case
-        # In the DITA file. The glossaryterm can start with an upper-case letter on the DITA file
-        # Terms cannot span more than 1 line
-        glossterm   = g_IDglossentries[index][1]
-        glosstermUC = glossterm.capitalize()
+    tagEnd = tag.replace("<", "</")
+    # add newline after closing tag to facilitate regex
+    g_DITAcontent = g_DITAcontent.replace(tagEnd, tagEnd + '\n')
     
-        glossentryID   = g_IDglossentries[index][0]
- 
-        xrefStr   = strPre + g_relativePath + '#' +  glossentryID + '">' + glossterm   + strSuf
-        xrefStrUC = strPre + g_relativePath + '#' +  glossentryID + '">' + glosstermUC + strSuf
+    glossentryID = glossentry[0]
+    glossterm = glossentry[1]
     
-        print "BEFORE: " + g_DITAcontent
-        print glossterm + ":::" + xrefStr
-        resultStr  = g_DITAcontent.replace(glossterm, xrefStr)
-        print "AFTER: " + resultStr
-        resultStr = resultStr.replace(glosstermUC, xrefStrUC)
-        g_DITAcontent = resultStr
+    # build xref tag        
+    xrefStr = strPre + g_relativePath + '#' + glossentryID + '">' + glossterm + strSuf
+    regex = glossterm + '[^<]*' + tagEnd
+    
+    # find all occurences case-insensitive and put in a tuple
+    occurencesALL = re.findall(regex, g_DITAcontent, re.IGNORECASE)
+    for occurence in occurencesALL:
+        occurenceNew = occurence.replace(glossterm, xrefStr)
+        # if term starts with upper case in the DITA file
+        if occurence == occurence:
+            occurence = occurence.capitalize()
+            glosstermUC = glossterm.capitalize()
+            xrefStrUC = strPre + g_relativePath + '#' + glossentryID + '">' + glosstermUC + strSuf
+            occurenceNew = occurence.replace(glosstermUC, xrefStrUC)
         
-        # Check for term that are spread in two or more lines
-        difference = R40AcheckTerm(g_DITAcontent, glossterm)
+        # replace content with content that contains xref link   
+        g_DITAcontent = g_DITAcontent.replace(occurence, occurenceNew)
+        # remove all new lines again
+        g_DITAcontent = g_DITAcontent.replace('\n', " ")
+        
+    return g_DITAcontent
+
+
+def R29WriteDITA(content, DITAfile):
+    routine = 'R49 '
+    R99writeLog(routine)
+    # write replaced content to file
     
-        if difference <> 0:
-            print routine + '001ERROR'
-            print '''
-            xref incomplete:  
-            The term cannot include a new line
-            user action: check for new lines within terms in your DITA code.
-            '''
-            print "differences " + str(difference) + "\nterm: " + glossterm    
-            exit()
-        else:   
-            try:
-                DITA = open(DITAfile, "w" )
-            except IOError:
-                ioError(routine, DITAfile)    
+    try:
+        DITA = open(DITAfile, "w")
+    except IOError:
+        ioError(routine, DITAfile)    
             
-            DITA.write(g_DITAcontent)
-            DITA.close() 
-    
+    DITA.write(content)
+    DITA.close() 
     return
 
 
 # ===== MAIN =====
 def R00Main():
+    start = time.time()
     routine = 'R00 '
     R99writeLog(routine)
     #
     DITAfile = ""
     glossary = ""
-        
+    # global g_DITAcontent    
     R10InitPrg()
     for DITAfile in g_DITAlist:
         R20InitDITA(DITAfile)
         if g_DITAcontent <> '':
             for glossary in g_all_glossgroup:
                 R30Init_glossgroup(DITAfile, glossary)
-                R40Proc_glossdef(g_DITAcontent, DITAfile)
-                R39Fin_glossgroup()    
+                for tag in g_allowedTags:                     
+                    if tag.rstrip() in g_DITAcontent:
+                        for glossentry in g_IDglossentries:
+                            R40Proc_glossdef(DITAfile, tag, glossentry)
+                R39Fin_glossgroup()            
+            R29WriteDITA(g_DITAcontent, DITAfile)
     R19FinPrg()
+    #
+    end = time.time()
+    R99writeLog("elapsed time: " + str(end - start) + "sec")
     
     return
  
