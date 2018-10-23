@@ -32,11 +32,12 @@ See the sample project for an example.
 * `DITAtest.zip` archive file of the sample DITA project
 * `glossaryLinker.jpg` Jackson diagram of the program structure
 * `glossaryLinker.py` Python code
-*  Eclipse project files (Oxygen 2)
 
 ## Output
 * Log file that contains information about the routines that the program ran.
 * Backup of the original DITA files.
+* Changes DITA files with xref tags. 
+
 
 ## Generating the cross reference links 
 
